@@ -1,10 +1,11 @@
 """Item Counter (the ZORA flag item_counter; idea: Ultralavos): the ROM side of asm/flags2/item-counter.
 
-The patch shows chest, found, chest, total on the status bar row under the rupees: an orange chest, then the
-same tile in the numbers' colors, gray. CommonBackgroundPatterns tile $60 becomes the chest: blank in PRG0, drawn
-by no screen, and outside the tiles other ZORA flags draw ($30-$4F the boss expansion, $50-$5F Change Hidden OW
-Tiles, $50/$51 Pegasus Boots' blank priority sprites); graphics_theme.RESERVED_BACKGROUND_TILES keeps themes off
-it. The digits and A-F are the font's own tiles $00-$0F. The seed's table (asm/rom_space.toml site
+The patch shows chest, found, slash, total on the status bar row under the rupees: an orange chest, then the count
+over the total in the numbers' white. CommonBackgroundPatterns tiles $4E and $4F become the chest and the slash:
+blank in PRG0 and drawn by no screen. They are the last two tiles of the common boss block ($30-$4F, Randomize Boss
+Groups' special boss): with Item Counter on, that pass deals and packs the block in its first 30 tiles
+(steps/randomize_boss_groups.py, COMMON_BLOCK_ITEM_COUNTER_TILES), and graphics_theme.RESERVED_BACKGROUND_TILES
+keeps themes off the whole block. The digits and A-F are the font's own tiles $00-$0F. The seed's table (asm/rom_space.toml site
 "item-counter-table", bank 5 $BA40-$BABF) lists each area's places as the patch reads them
 (asm/flags2/item-counter/bank_05.s); zora/generate/item_counter.py says which places count.
 """
@@ -27,11 +28,12 @@ DISPLAY_LIMIT = 0x0F                    # the font's F: a count or total above i
 # CommonBackgroundPatterns starts 768 bytes before the boss expansion that reuses it (model/sprites.py).
 COMMON_BACKGROUND = BOSS_SET_EXPANSION_SPRITES_ADDRESS - 0x300
 TILE_BYTES = 16
-CHEST_TILE = 0x60
+CHEST_TILE = 0x4E
+SLASH_TILE = 0x4F
 
-# The status bar's colors: 0 black, then 1-3 as the 2x2-tile block's palette has them. The first chest sits in the
-# icons' column (1 red, 2 orange, 3 peach), the second among the numbers (1 white, 2 gray, 3 blue): drawn in colors
-# 2 and 1 only, the one tile is an orange chest with a red lock first and a gray chest with a white lock second.
+# The status bar's colors: 0 black, then 1-3 as the 2x2-tile block's palette has them. The chest sits in the icons'
+# column (1 red, 2 orange, 3 peach): an orange chest with a red lock. The slash sits among the numbers (1 white,
+# 2 gray, 3 blue) and is drawn in color 1, as the font's digits are.
 COLORS = {".": 0, "W": 1, "O": 2, "P": 3}
 CHEST = (
     "........",
@@ -41,6 +43,16 @@ CHEST = (
     "OOOWWOOO",
     "OOOW.OOO",
     "OOOOOOOO",
+    "........",
+)
+SLASH = (
+    "......WW",
+    ".....WW.",
+    "....WW..",
+    "...WW...",
+    "..WW....",
+    ".WW.....",
+    "WW......",
     "........",
 )
 
@@ -94,5 +106,6 @@ def table_bytes(areas: Sequence[CounterArea]) -> bytes:
 
 
 def item_counter_writes(table: bytes) -> list[tuple[int, bytes]]:
-    """The chest tile and the seed's table, as (file offset, bytes)."""
-    return [(COMMON_BACKGROUND + CHEST_TILE * TILE_BYTES, tile_bytes(CHEST)), (TABLE, table)]
+    """The chest and slash tiles and the seed's table, as (file offset, bytes)."""
+    return [(COMMON_BACKGROUND + CHEST_TILE * TILE_BYTES, tile_bytes(CHEST)),
+            (COMMON_BACKGROUND + SLASH_TILE * TILE_BYTES, tile_bytes(SLASH)), (TABLE, table)]

@@ -73,6 +73,10 @@ BOSS_BLOCK_FIRST_TILE = 192
 COMMON_BLOCK_FIRST_TILE = 48
 COMMON_BLOCK_OFFSET = 768                        # CommonBackgroundPatterns + 768
 COMMON_TABLE_BIT = 1                             # 8x16 tile bit 0: the other table
+# Item Counter's chest and slash ($4E, $4F; zora/rom/item_counter.py): the common block's last two tiles,
+# kept from the deal and the packing when it is on. With them kept the block holds 30 tiles; the one deal that
+# needs all 32 (special Digdogger with Gohma and Patra) is redrawn. With Item Counter off nothing changes.
+COMMON_BLOCK_ITEM_COUNTER_TILES = 2
 AQUAMENTUS_FRAME_LIFT = 2                        # its smallest frame is its third tile
 GLEEOK_NECK_LIFT, GLEEOK_HEAD_LIFT, GLEEOK_HEAP_LIFT = 26, 28, 30
 GLEEOK_HEAP_OFFSET = 199
@@ -82,6 +86,7 @@ GLEEOK_HEAP_OFFSET = 199
 class BossDeal:
     special: Enemy
     blocks: dict[int, list[Enemy]]               # block -> bosses, special first
+    common_reserved: int = 0                     # common block tiles kept at its end (Item Counter's)
 
     def widened(self, block: int) -> list[Enemy]:
         """PS-BGRP-02: the block's bosses' variants, then the common
@@ -90,13 +95,15 @@ class BossDeal:
         return [variant for boss in bosses for variant in BOSSES[boss].variants]
 
 
-def deal_bosses(rng: IntRng) -> BossDeal:
+def deal_bosses(rng: IntRng, common_reserved: int = 0) -> BossDeal:
     """PS-BGRP-01: the special boss is reserved into the common block; the
-    rest, in the fixed order, draw a block uniformly until they fit."""
+    rest, in the fixed order, draw a block uniformly until they fit. The
+    common block's last `common_reserved` tiles are kept out (Item
+    Counter's); with none kept the draws are PS-BGRP-01's."""
     discard(rng, DISCARDED_DRAWS)
     special = SPECIAL_CANDIDATES[rng.below(len(SPECIAL_CANDIDATES))]
     free = list(BLOCK_FREE_TILES)
-    free[OVERWORLD] -= BOSSES[special].cost
+    free[OVERWORLD] -= common_reserved + BOSSES[special].cost
     blocks: dict[int, list[Enemy]] = {group: [] for group in GROUPS}
     blocks[OVERWORLD].append(special)
     for boss in BOSS_ORDER:
@@ -107,7 +114,7 @@ def deal_bosses(rng: IntRng) -> BossDeal:
             block = rng.below(len(GROUPS))
         free[block] -= BOSSES[boss].cost
         blocks[block].append(boss)
-    return BossDeal(special, blocks)
+    return BossDeal(special, blocks, common_reserved)
 
 
 def _boss_destination(block: int, tile: int) -> tuple[PatternBlock, int]:
@@ -122,6 +129,8 @@ def packed_slots(deal: BossDeal) -> Iterator[tuple[int, Enemy, SpriteObject, lis
     packing order, companions right after their boss."""
     for block, bosses in deal.blocks.items():
         free = list(BOSS_BLOCK_TILES[block])
+        if block == OVERWORLD and deal.common_reserved:
+            free = free[:-deal.common_reserved]
         # Packing follows the dealing order (descending cost), the special
         # boss included: Aquamentus dealt into the common block beside a
         # special Digdogger still takes its first slot.
@@ -210,10 +219,11 @@ def redraw_bosses(blocks: list[LevelBlock], deal: BossDeal, rng: IntRng) -> int:
 
 
 def randomize_boss_groups(blocks: list[LevelBlock], gw: GameWorld, rng: IntRng,
-                          staged: Staged) -> tuple[BossDeal, int]:
+                          staged: Staged, common_reserved: int = 0) -> tuple[BossDeal, int]:
     """PS-BGRP-01..03: deal the bosses into pattern blocks, pack their tiles
     and redraw every boss room from its block. Returns the deal and the
-    number of bosses redrawn."""
-    boss_deal = deal_bosses(rng)
+    number of bosses redrawn. `common_reserved`: the common block's last
+    tiles kept out (COMMON_BLOCK_ITEM_COUNTER_TILES with Item Counter on)."""
+    boss_deal = deal_bosses(rng, common_reserved)
     pack_bosses(gw, boss_deal, staged)
     return boss_deal, redraw_bosses(blocks, boss_deal, rng)

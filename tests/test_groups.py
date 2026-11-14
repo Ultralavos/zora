@@ -12,7 +12,8 @@ from zora.rom.serialize.rom_file import serialize_to_rom
 from zora.generate.rng import Rng
 from zora.generate.generation_pass import generate_shapes
 from zora.generate.steps.randomize_boss_groups import (
-    BLOCK_FREE_TILES, BOSSES, is_boss_pick_barred, deal_bosses,
+    BLOCK_FREE_TILES, BOSS_BLOCK_TILES, BOSSES, COMMON_BLOCK_ITEM_COUNTER_TILES, deal_bosses, is_boss_pick_barred,
+    packed_slots,
 )
 from zora.generate.steps.shuffle_enemy_groups import (
     GROUP_START_TOTALS, GROUP_TILE_LIMIT, OVERWORLD_BARRED, SEED_GROUPS, counted_cost, deal_enemies,
@@ -58,6 +59,26 @@ def test_boss_deal_fits_and_splits_the_big_two() -> None:
         assert homes[E.TRIPLE_DODONGO] in (0, 1) and homes[E.GLEEOK_2] in (0, 1)
         assert homes[E.TRIPLE_DODONGO] != homes[E.GLEEOK_2]
         assert set(deal.blocks[2]) <= {E.SINGLE_DIGDOGGER, E.PATRA_1}
+
+
+def test_item_counter_keeps_the_common_blocks_last_two_tiles() -> None:
+    """With Item Counter's two tiles kept, the common block's deal fits 30 tiles and its packing never reaches
+    $4E-$4F; with none kept the deal is the same as before."""
+    reserved = COMMON_BLOCK_ITEM_COUNTER_TILES
+    kept = set(BOSS_BLOCK_TILES[OVERWORLD][-reserved:])
+    redealt = 0
+    for seed in range(400):
+        assert deal_bosses(Rng(seed)) == deal_bosses(Rng(seed), 0)
+        deal = deal_bosses(Rng(seed), reserved)
+        common = sum(BOSSES[b].cost for b in deal.blocks[OVERWORLD])
+        assert common <= BLOCK_FREE_TILES[OVERWORLD] - reserved, (seed, deal)
+        for block in (0, 1, 2):
+            assert sum(BOSSES[b].cost for b in deal.blocks[block]) <= BLOCK_FREE_TILES[block]
+        for block, _boss, _sprite, slots in packed_slots(deal):
+            if block == OVERWORLD:
+                assert not kept & set(slots), (seed, slots)
+        redealt += deal.blocks != deal_bosses(Rng(seed)).blocks
+    assert 0 < redealt < 40          # only the deals that needed all 32 tiles change (about 3%)
 
 
 def test_boss_layout_bars() -> None:

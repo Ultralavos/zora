@@ -692,6 +692,7 @@ def extra_options(chosen: GenerationPlan) -> ExtraOptions:
         swordlish_pieces=chosen.zora_resolved.swordlish_pieces,
         start_triforce_pieces=chosen.alternatives.start_triforce_pieces,
         wizzrobes_shoot_wallmasters=chosen.zora_resolved.is_on("wizzrobes_shoot_wallmasters"),
+        item_counter=chosen.zora_resolved.is_on(zora_flags.ITEM_COUNTER_FIELD),
     )
 
 

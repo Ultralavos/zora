@@ -2,12 +2,12 @@
 or in a level by the level-load and enter-room modes; the status bar row under the rupees (PPU $208B) is read from
 the nametable.
 
-  - Each area shows the chest, 0, the chest and its table total; a total over 9 shows as the font's A-F.
+  - Each area shows the chest, 0, the slash and its table total; a total over 9 shows as the font's A-F.
   - Taking a counted floor item adds one; so do the bits a counted cellar, cave screen and once-only ware set.
   - Bits of places that do not count change nothing (a room or screen not listed, a re-buyable ware).
   - Under Item Only every heart container counts the moment it is taken, the bosses' too.
   - With Change Hidden OW Tiles and Pegasus Boots on, the counter shows the same, and the chest shows nowhere
-    else: no overworld screen or level room draws $60."""
+    else: no overworld screen or level room draws $4E or $4F."""
 from collections.abc import Callable
 from functools import cache
 
@@ -30,7 +30,7 @@ from zora.generate.places import read_item
 from zora.model.enums import Item
 from zora.rom import inventory
 from zora.rom.base_rom import remember_repo_base_rom
-from zora.rom.item_counter import AREAS, BLOCK_HEADER, CHEST_TILE, TABLE, TABLE_SIZE, WARE_PLACE
+from zora.rom.item_counter import AREAS, BLOCK_HEADER, CHEST_TILE, SLASH_TILE, TABLE, TABLE_SIZE, WARE_PLACE
 from zora.rom.parse.rom_file import parse_rom
 
 pytestmark = [needs_base_rom, pytest.mark.slow]
@@ -121,7 +121,7 @@ def shown(emu: Emulator) -> tuple[int, int] | None:
     tiles = emu.nametable(COUNTER, COUNTER_TILES)
     if tiles[0] != CHEST_TILE:
         return None
-    assert tiles[2] == CHEST_TILE
+    assert tiles[2] == SLASH_TILE
     return tiles[1], tiles[3]
 
 
@@ -233,7 +233,9 @@ def test_the_chest_shows_nowhere_else() -> None:
         for base in NAMETABLES:
             for index, tile in enumerate(emu.nametable(base, NAMETABLE_SIZE)):
                 if tile == CHEST_TILE:
-                    assert base + index in (COUNTER, COUNTER + 2), (where, hex(base + index))
+                    assert base + index == COUNTER, (where, hex(base + index))
+                if tile == SLASH_TILE:
+                    assert base + index == COUNTER + 2, (where, hex(base + index))
 
     # Each overworld screen, scrolled onto from its neighbour (the east one; the west one for the last column).
     emu = enter(rom, 0)

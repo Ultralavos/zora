@@ -130,7 +130,7 @@ from .steps.oops_all import oops_all_bosses, oops_all_enemies
 from .steps.person_appearances import draw_person_appearances
 from .steps.place_triforces import place_triforces
 from .steps.potion_shop import shuffle_blue_potion
-from .steps.randomize_boss_groups import randomize_boss_groups
+from .steps.randomize_boss_groups import COMMON_BLOCK_ITEM_COUNTER_TILES, randomize_boss_groups
 from .steps.randomize_letter import randomize_letter
 from .steps.randomize_magical_sword import (
     check_magical_sword_hearts,
@@ -647,8 +647,10 @@ def randomize_boss_groups_step(context: GenerationContext) -> None:
     """PS-BGRP."""
     groups = context.groups
     assert groups is not None
+    reserved = COMMON_BLOCK_ITEM_COUNTER_TILES if context.settings.extras.item_counter else 0
     groups.boss_deal, groups.bosses_redrawn = randomize_boss_groups(context.sets.blocks, context.world,
-                                                                    context.rng, groups.staged)
+                                                                    context.rng, groups.staged,
+                                                                    common_reserved=reserved)
 
 
 def shuffle_enemy_drop_groups_step(context: GenerationContext) -> None:
