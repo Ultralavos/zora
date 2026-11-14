@@ -45,8 +45,9 @@ THEMES_FOLDER = "themes"                    # zora/rom/themes/<theme>.json, pack
 TILE_BYTES = 16
 # CommonBackgroundPatterns tiles a theme never writes: $30-$4F is the common boss block (Randomize
 # Boss Groups' special boss, PS-BGRP-01), $50-$5F Change Hidden OW Tiles' secret squares (B89) and
-# Pegasus Boots' blank priority sprites ($50/$51, which must stay blank), $60 Item Counter's chest.
-RESERVED_BACKGROUND_TILES = range(0x30, 0x61)
+# Pegasus Boots' blank priority sprites ($50/$51, which must stay blank); Item Counter's chest and slash are the
+# boss block's $4E-$4F.
+RESERVED_BACKGROUND_TILES = range(0x30, 0x60)
 COMMON_BACKGROUND = "CommonBackgroundPatterns"
 COMMON_SPRITES = "CommonSpritePatterns"
 # The fireball (Z_04 "Fireball tile" $44, an 8x16 pair): one of Item and Sprite Appearance's 34

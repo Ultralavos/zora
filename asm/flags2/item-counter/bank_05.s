@@ -23,7 +23,8 @@ COUNTER_ADDRESS_LOW = $8B
 COUNTER_TILES = 4
 TRANSFER_END = $FF
 
-TILE_CHEST = $60                    ; CommonBackgroundPatterns' blank tile $60 (zora/rom/item_counter.py)
+TILE_CHEST = $4E                    ; CommonBackgroundPatterns' tiles $4E-$4F, kept from Randomize Boss Groups
+TILE_SLASH = $4F                    ; (zora/rom/item_counter.py)
 TILE_BLANK = $24
 
 ; Scratch: World_ChangeRupees and its caller are done with it.
@@ -65,7 +66,7 @@ WriteCounterRecord:
     DEX
     BPL :-
 
-    ; Blank when the area counts nothing; else chest, found, chest and total, the numbers each the font's
+    ; Blank when the area counts nothing; else chest, found, slash and total, the numbers each the font's
     ; tile for its value (0-9, then A-F for 10-15).
     JSR CountItems
     BEQ @Exit
@@ -74,6 +75,7 @@ WriteCounterRecord:
     STA DynTileBuf+4
     LDA #TILE_CHEST
     STA DynTileBuf+3
+    LDA #TILE_SLASH
     STA DynTileBuf+5
 
 @Exit:
@@ -126,13 +128,14 @@ IsPlaceTaken:
 
 @Ware:
     ; A shop ware: ShopBoughtFlags + PP, bit SSS.
+    ; Three shifts leave %000100PP: $10 + PP, so the low byte is ShopBoughtFlags - $10 plus it (no carry out:
+    ; $0677 - $10 + $13 stays below $0700).
     PHA
     LSR
     LSR
     LSR
-    AND #$03
     CLC
-    ADC #<ShopBoughtFlags
+    ADC #<(ShopBoughtFlags - $10)
     STA PlaceAddress
     LDA #>ShopBoughtFlags
     STA PlaceAddress+1

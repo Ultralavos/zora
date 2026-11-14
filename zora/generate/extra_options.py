@@ -82,6 +82,9 @@ class ExtraOptions:
     # Wizzrobes Shoot Wallmasters, resolved: the deal puts the Wizzrobes in the Wallmasters' dungeon group
     # (steps/shuffle_enemy_groups.py)
     wizzrobes_shoot_wallmasters: bool = False
+    # Item Counter, resolved: its chest and slash take common boss block tiles $4E-$4F, so Randomize Boss
+    # Groups deals and packs that block in 30 tiles (steps/randomize_boss_groups.py)
+    item_counter: bool = False
 
     @property
     def oops_all(self) -> bool:

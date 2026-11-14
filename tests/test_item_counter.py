@@ -22,12 +22,16 @@ from zora.generate.item_counter import counter_areas
 from zora.generate.pipeline import Built, build, generate_rom, plan, with_item_counter
 from zora.rom import inventory
 from zora.rom.base_rom import remember_repo_base_rom
+from zora.generate.steps.group_banks import OVERWORLD
+from zora.generate.steps.randomize_boss_groups import BOSS_BLOCK_TILES, COMMON_BLOCK_ITEM_COUNTER_TILES
 from zora.rom.graphics_theme import RESERVED_BACKGROUND_TILES
 from zora.rom.item_counter import (
     AREAS,
     CHEST,
     CHEST_TILE,
     COMMON_BACKGROUND,
+    SLASH,
+    SLASH_TILE,
     TABLE,
     TABLE_SIZE,
     TILE_BYTES,
@@ -62,15 +66,20 @@ def test_the_tiles() -> None:
     assert len(chest) == TILE_BYTES
     assert chest[0] == 0 and chest[TILE_BYTES // 2] == 0          # the top row is black: off the rupee
     assert tile_bytes(["." * 8] * 8) == bytes(TILE_BYTES)
-    assert CHEST_TILE == 0x60
+    assert len(tile_bytes(SLASH)) == TILE_BYTES
+    assert (CHEST_TILE, SLASH_TILE) == (0x4E, 0x4F)
 
 
-def test_the_chest_tile_is_blank_in_prg0_and_reserved() -> None:
-    """$60 is blank in PRG0, past the tiles other flags draw ($30-$5F), and themes never write it."""
+def test_the_tiles_are_blank_in_prg0_and_reserved() -> None:
+    """$4E-$4F are blank in PRG0, themes never write them, and they are the common boss block's last two tiles,
+    the ones Randomize Boss Groups keeps out with Item Counter on."""
     rom = remember_repo_base_rom()
-    start = COMMON_BACKGROUND + CHEST_TILE * TILE_BYTES
-    assert rom[start:start + TILE_BYTES] == bytes(TILE_BYTES)
-    assert CHEST_TILE in RESERVED_BACKGROUND_TILES and CHEST_TILE not in range(0x30, 0x60)
+    for tile in (CHEST_TILE, SLASH_TILE):
+        start = COMMON_BACKGROUND + tile * TILE_BYTES
+        assert rom[start:start + TILE_BYTES] == bytes(TILE_BYTES)
+        assert tile in RESERVED_BACKGROUND_TILES
+    common = BOSS_BLOCK_TILES[OVERWORLD]
+    assert [CHEST_TILE, SLASH_TILE] == list(common[-COMMON_BLOCK_ITEM_COUNTER_TILES:])
 
 
 def test_the_table_encoding() -> None:
@@ -136,9 +145,9 @@ def test_finished_roms_hold_the_table_only_with_the_flag() -> None:
     config = with_item_counter(build(plan(MVP_BASELINE_LEVEL_ENCODING_OFF, 4, ON), remember_repo_base_rom()))
     assert on[TABLE:TABLE + len(config.item_counter_table)] == config.item_counter_table
     assert set(off[TABLE:TABLE + TABLE_SIZE]) == {0xFF}
-    start = COMMON_BACKGROUND + CHEST_TILE * TILE_BYTES
-    assert off[start:start + TILE_BYTES] == bytes(TILE_BYTES)
-    assert on[start:start + TILE_BYTES] == tile_bytes(CHEST)
+    for tile, rows in ((CHEST_TILE, CHEST), (SLASH_TILE, SLASH)):
+        start = COMMON_BACKGROUND + tile * TILE_BYTES
+        assert on[start:start + TILE_BYTES] == tile_bytes(rows)
     assert not with_item_counter(build(plan(MVP_BASELINE_LEVEL_ENCODING_OFF, 4), remember_repo_base_rom())) \
         .item_counter_table
 
@@ -147,14 +156,15 @@ def test_finished_roms_hold_the_table_only_with_the_flag() -> None:
 @pytest.mark.slow
 def test_beside_change_hidden_ow_tiles_and_pegasus_boots() -> None:
     """Change Hidden OW Tiles draws $50-$5F and Pegasus Boots needs $50/$51 blank: with both on, the counter
-    still generates, their tiles $50-$5F are as without it, and $60 holds the chest."""
+    still generates, their tiles $50-$5F are as without it, and $4E-$4F hold the chest and the slash."""
     hidden = codec.encode(codec.decode(MVP_BASELINE_LEVEL_ENCODING_OFF).updated(
         toggles={CHANGE_HIDDEN_TILES: ThreeState.ON}))
     boots = zora_flags.ZoraFlags(pegasus_boots=ThreeState.ON)
     without = generate_rom(hidden, 4, remember_repo_base_rom(), zora_flag_string=zora_flags.encode(boots)).rom
     with_counter = generate_rom(hidden, 4, remember_repo_base_rom(), zora_flag_string=zora_flags.encode(
         replace(boots, item_counter=ThreeState.ON))).rom
-    others = slice(COMMON_BACKGROUND + 0x50 * TILE_BYTES, COMMON_BACKGROUND + CHEST_TILE * TILE_BYTES)
+    others = slice(COMMON_BACKGROUND + 0x50 * TILE_BYTES, COMMON_BACKGROUND + 0x60 * TILE_BYTES)
     assert with_counter[others] == without[others] != bytes(0x10 * TILE_BYTES)
-    start = COMMON_BACKGROUND + CHEST_TILE * TILE_BYTES
-    assert with_counter[start:start + TILE_BYTES] == tile_bytes(CHEST)
+    for tile, rows in ((CHEST_TILE, CHEST), (SLASH_TILE, SLASH)):
+        start = COMMON_BACKGROUND + tile * TILE_BYTES
+        assert with_counter[start:start + TILE_BYTES] == tile_bytes(rows)
